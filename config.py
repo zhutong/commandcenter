@@ -13,4 +13,5 @@ snmp
 cisco brocade
 huawei h3c
 f5
+netmiko
 '''

@@ -12,12 +12,12 @@ class Worker(BaseWorker):
 
     def handler(self, task_id, params):
         logging.info('Doing %s', task_id)
-        sleep(random.randrange(1, 4))
-        size = random.randrange(1, 100)  # * 1000
+        sleep(random.randrange(1, 6))
+        size = random.randrange(1, 1000) * 10000
         return dict(status='success',
-                    message='A'*size,
-                    hostname='',
-                    output=[])
+                    message='',
+                    hostname=params['hostname'],
+                    output=['A'*size])
 
 
 if __name__ == '__main__':

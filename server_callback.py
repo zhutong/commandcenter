@@ -59,6 +59,7 @@ def write_client(message):
         logging.error("Task %s error: %s", task_id, str(e))
     finally:
         del clients[task_id]
+        logging.info('Opened tasks: %s', len(clients))
 
 
 class CommandHandler(web.RequestHandler):
