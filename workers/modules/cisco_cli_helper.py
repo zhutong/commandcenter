@@ -47,6 +47,8 @@ class CiscoCLI(object):
         self.enable_password = device_info.get('enable_password')
         self.method = device_info.get('method', 'ssh').lower()
         self.port = device_info.get('port')
+        self.extra_prompts = device_info.get('extra_prompts')
+        self.error_sign = device_info.get('error_sign', " '^' ")
         self.logger = logger
         self.child = None
 
@@ -74,6 +76,7 @@ class CiscoCLI(object):
         password = self.password
         enable_password = self.enable_password
         port = self.port
+        device_type = 'cisco'
 
         child = self.child
         try:
@@ -149,7 +152,7 @@ class CiscoCLI(object):
                     prompt = '>'
 
             if prompt == '#':
-                child.sendline('terminal pager 0')
+                # child.sendline('terminal pager 0')
                 child.sendline('terminal length 0')
                 child.expect('terminal length 0', timeout=timeout)
             else:
@@ -157,10 +160,11 @@ class CiscoCLI(object):
             child.expect(prompt, timeout=timeout)
             self.prompt = last_line = ''.join(
                 (child.before.splitlines()[-1].decode('utf-8'), prompt))
-            if ':' in last_line and 'SN' in last_line:  # BROCADE
-                hostname = last_line.split(':')[0]
-            elif ':' in last_line and 'RP' in last_line:  # IOX
+            if ':' in last_line and 'RP' in last_line:  # IOX
                 hostname = last_line.split(':')[-1][:-1]
+            elif ':' in last_line:  # BROCADE
+                device_type = 'brocade'
+                hostname = last_line.split(':')[0]
             else:
                 hostname = last_line[:-1]
             self.hostname = hostname
@@ -172,13 +176,26 @@ class CiscoCLI(object):
             self.expect_pattern = ['.*\r\n',
                                    pexpect.TIMEOUT,
                                    pexpect.EOF,
-                                   re.escape(self.prompt),
-                                   '\)#',
-                                   'fex-\d+#',
-                                   '\[[yn]\]',
-                                   '[pP]assword:',
-                                   '\[confirm\]',
-                                   '\]\?']
+                                   re.escape(self.prompt)]
+            if device_type == 'cisco':
+                self.expect_pattern.extend([
+                    '\)#',
+                    'fex-\d+#',
+                    '\[[yn]\]',
+                    '[pP]assword:',
+                    '\[confirm\]',
+                    '\]\?',
+                    ])
+            elif device_type == 'brocade':
+                self.expect_pattern.extend([
+                    '\): ',
+                    'Name: ',
+                    'Password: ',
+                    'Directory: ',
+                    ' \[Y\]:'])
+            if self.extra_prompts:
+                extra_prompts = [re.escape(p) for p in self.extra_prompts]
+                self.expect_pattern.extend(extra_prompts)
             return self.prompt
         except LoginException as e:
             if (self.method == 'ssh') and (b'versions differ' in child.before):
@@ -204,14 +221,17 @@ class CiscoCLI(object):
         while True:
             c = child.expect(expect_pattern, timeout=timeout)
             res.append(child.before.decode('utf-8'))
-            res.append(str(child.after.decode('utf-8')))
+            try:
+                res.append(str(child.after.decode('utf-8')))
+            except:
+                break
             if c > 0:
                 break
         output = ''.join(res)
         if c == 1:
             status = 'Timeout'
             self.logger.error('Timeout execute: %s @ %s' % (command, self.ip))
-        elif " '^' " in output:
+        elif self.error_sign in output:
             status = 'Error'
         else:
             status = 'Ok'

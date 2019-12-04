@@ -7,7 +7,7 @@ from modules.cisco_cli_helper import CiscoCLI
 
 
 class Worker(BaseWorker):
-    channel = 'cisco'
+    channel = 'cisco::brocade'
     name = channel.upper()
 
     def handler(self, task_id, params):

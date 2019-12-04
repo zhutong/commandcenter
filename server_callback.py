@@ -17,7 +17,7 @@ enable_pretty_logging()
 ioloop.install()
 
 context = zmq.Context()
-
+active_workers = set()
 
 def get_channel_dict():
     channel_dict = {}
@@ -33,7 +33,10 @@ def port_query_daemon():
     rep.bind("tcp://*:%d" % PORT_DAEMON_SOCKET_PORT)
     while True:
         message = rep.recv_string()
-        port = channel_dict.get(message)
+        for c in message.split('::'):
+            port = channel_dict.get(c)
+            if port:
+                active_workers.add(c)
         rep.send_string(str(port))
         logging.info('Worker %s connect' % message)
 
@@ -104,8 +107,8 @@ class CommandHandler(web.RequestHandler):
             ch = 'snmp'
 
         # verify channel
-        if ch not in worker_channels:
-            raise Exception('not supported channel: %s' % ch)
+        if ch not in active_workers:
+            raise Exception('not supported device type: %s' % ch)
 
         return device_info, ch
 
@@ -143,6 +146,7 @@ class CommandHandler(web.RequestHandler):
             p = channel_dict[ch]
             backends[p].send_multipart(
                 [task_id.encode(), b'', json.dumps(device_info).encode()])
+
             clients[task_id] = self
         except Exception as e:
             reply = dict(status='error', message=str(e))

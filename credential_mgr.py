@@ -5,6 +5,8 @@ from threading import Thread
 
 import requests as http_requests
 
+from config import DEVICE_LIST_URL
+
 __author__ = 'zhutong'
 
 LOCAL_FILE = 'device_credential.json'
@@ -34,7 +36,6 @@ class CredentialManager(Thread):
     device_dict = {}
     device_list = []
     renew_interval = 3600
-    renew_url = "http://127.0.0.1:9116/apps/device_center/api/get_device_list"
 
     def query(self, q):
         if not q:
@@ -187,7 +188,7 @@ class CredentialManager(Thread):
         # Pull credentials from URL in certain interval
         while True:
             try:
-                response = http_requests.get(self.renew_url, timeout=10)
+                response = http_requests.get(DEVICE_LIST_URL, timeout=10)
                 if response.status_code == 200:
                     result = response.json()
                     if result.get("result") == "success":
@@ -205,5 +206,4 @@ class CredentialManager(Thread):
             except Exception as e:
                 self.__load()
                 logging.error(e.message)
-                return dict(status='error',
-                            err_msg='Load device credential failed.')
+                return
