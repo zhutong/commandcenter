@@ -165,6 +165,9 @@ class CiscoCLI(object):
             elif ':' in last_line:  # BROCADE
                 device_type = 'brocade'
                 hostname = last_line.split(':')[0]
+            elif '/act/' in last_line or '/stby/' in last_line:  # Cisco ASA
+                device_type = 'cisco'
+                hostname = last_line.split('/')[0]
             else:
                 hostname = last_line[:-1]
             self.hostname = hostname
